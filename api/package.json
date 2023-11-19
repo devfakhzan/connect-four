@@ -7,7 +7,9 @@
     "test": "echo \"No tests yet...\""
   },
   "dependencies": {
-    "@azure/functions": "^4.0.0"
+    "@azure/functions": "^4.0.0",
+    "sequelize": "^6.35.0",
+    "sqlite3": "^5.1.6"
   },
   "devDependencies": {},
   "main": "src/functions/*.js"
