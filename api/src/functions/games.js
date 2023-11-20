@@ -54,7 +54,7 @@ app.http("games", {
   handler: async (request, context) => {
     await Game.sync();
 
-    //For clearing database:
+    ////For clearing database:
     // await Game.destroy({
     //     where: {
     //         id: {
@@ -305,7 +305,7 @@ app.http("games", {
                   return {
                     formula: board?.[row - step]?.[col + step] === color,
                     failedSanityCheck: col + step > maxCol || row - step < 0,
-                    streak: [row - step, col + step],
+                    passedStreak: [row - step, col + step],
                   };
                 }
               }
@@ -400,12 +400,6 @@ app.http("games", {
             return false;
           };
 
-          const inWinningStreak = (row, col) => {
-            return winningStreakCoordinates?.find(
-              (tile) => tile[0] === row && tile[1] === col
-            );
-          };
-
           playLog.push({
             color: turn,
             col,
@@ -427,7 +421,7 @@ app.http("games", {
           await Game.update(
             {
               board,
-              winningStreakCoordinates: winningStreakCoordinates,
+              winningStreakCoordinates,
               status,
               winner,
               turn,

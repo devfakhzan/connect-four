@@ -51,7 +51,7 @@ const createNewGame = async () => {
     const { data } = await axios.post("/api/games");
     if (data) {
       await fetchAllGames();
-      await fetchGamesInPage(totalPages);
+      await fetchGamesInPage(totalPages.value);
     }
   } catch (error) {
     alert(
@@ -123,7 +123,6 @@ header {
   top: 0;
   background: rgb(78, 78, 228);
   display: flex;
-  justify-content: space-between;
 }
 
 header button {

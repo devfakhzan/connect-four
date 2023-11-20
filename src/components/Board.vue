@@ -112,7 +112,7 @@ const inwinningStreakCoordinates = (row, col) => {
 .container {
   padding: 5px;
   overflow: hidden;
-  flex: 44%;
+  flex: -1%;
 }
 
 .cursor {
@@ -141,7 +141,14 @@ button {
   justify-content: space-around;
   align-items: space-around;
   margin-left: 10px;
+  margin-bottom: 5px;
 }
+
+.buttons-container button {
+  cursor: pointer;
+}
+
+
 .y {
   color: rgb(211, 211, 33);
 }
