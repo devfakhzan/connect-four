@@ -65,9 +65,9 @@ app.http("games", {
     // return
 
     const { gameId, check } = request.params;
-    let originalHost = request.headers.get('host');
-    const protocol = request.url.includes('https') ? 'https://' : 'http://';
-    const originalHostWithNoTrailingSlash = `${protocol}${originalHost}`;
+    const localUrl = (new URL(request.url)).origin;
+    const originalHostWithNoTrailingSlash = request.url.includes('https') ? process.env.API_BASE_URL : (localUrl.endsWith('/') ? localUrl.slice(0, -1) : localUrl);
+    
 
     const errorResponse = (errorMessage) => {
       return {
