@@ -570,6 +570,10 @@ e,e,y,r,e,e,e
 e,e,y,r,e,e,e
 ```
 
-> `Note: e = Empty (unplayed coordinate), y = Yellow coin at this coordinate r = Red coin at this coordinate.`
+Note:
+> ```text 
+> e = Empty (unplayed coordinate)
+> y = Yellow coin at this coordinate 
+> r = Red coin at this coordinate.
 </details>
 </details>
