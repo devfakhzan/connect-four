@@ -31,7 +31,7 @@ const Game = sequelize.define("Game", {
   },
   winningStreakCoordinates: {
     type: DataTypes.JSON,
-    defaultValue: []
+    defaultValue: [],
   },
   status: {
     type: DataTypes.TEXT,
@@ -39,11 +39,11 @@ const Game = sequelize.define("Game", {
   },
   winner: {
     type: DataTypes.TEXT,
-    defaultValue: null
+    defaultValue: null,
   },
   playLog: {
     type: DataTypes.JSON,
-    defaultValue: []
+    defaultValue: [],
   },
 });
 
@@ -65,9 +65,12 @@ app.http("games", {
     // return
 
     const { gameId, check } = request.params;
-    const localUrl = (new URL(request.url)).origin;
-    const originalHostWithNoTrailingSlash = request.url.includes('https') ? process.env.API_BASE_URL : (localUrl.endsWith('/') ? localUrl.slice(0, -1) : localUrl);
-    
+    const localUrl = new URL(request.url).origin;
+    const originalHostWithNoTrailingSlash = request.url.includes("https")
+      ? process.env.API_BASE_URL
+      : localUrl.endsWith("/")
+      ? localUrl.slice(0, -1)
+      : localUrl;
 
     const errorResponse = (errorMessage) => {
       return {
@@ -84,8 +87,6 @@ app.http("games", {
 
     //Request made to "/api/games"
     if (!gameId && !check) {
-      
-
       switch (
         request.method //Check request method
       ) {
@@ -106,13 +107,16 @@ app.http("games", {
             limit: perPage,
           });
 
-          const totalPages = Math.ceil((await Game.count({
-            where: {
-              id: {
-                [Op.not]: null
-              }
-            }
-          }))/perPage) || 1;
+          const totalPages =
+            Math.ceil(
+              (await Game.count({
+                where: {
+                  id: {
+                    [Op.not]: null,
+                  },
+                },
+              })) / perPage
+            ) || 1;
 
           return {
             body: JSON.stringify({
@@ -128,7 +132,7 @@ app.http("games", {
                 };
               }),
               currentPage: page,
-              totalPages
+              totalPages,
             }),
             headers: {
               "Content-Type": "application/json",
@@ -137,9 +141,7 @@ app.http("games", {
         }
         case "POST": {
           //Create a game
-          const newGame = (
-            await Game.create()
-          ).get({ plain: true });
+          const newGame = (await Game.create()).get({ plain: true });
 
           return {
             body: JSON.stringify(newGame),
@@ -156,8 +158,264 @@ app.http("games", {
 
     //Request made to "/api/games/<gameId>"
     if (gameId && !check) {
+      const playGame = async (col) => {
+        if (Number.isNaN(col) || col < 0 || col > 6) {
+          return {
+            body: JSON.stringify({
+              error: "Invalid column.",
+            }),
+            headers: {
+              "Content-Type": "application/json",
+            },
+          };
+        }
+
+        const game = await Game.findByPk(gameId, { raw: true });
+
+        if (!game) {
+          return errorResponse(gameNotFoundErrorMessage);
+        }
+
+        switch (game.status) {
+          case "ended": {
+            return {
+              body: JSON.stringify({
+                error: `Game has ended. ${
+                  game.winner === "y" ? "Yellow" : "Red"
+                } won.`,
+              }),
+              headers: {
+                "Content-Type": "application/json",
+              },
+            };
+          }
+          case "tie": {
+            return {
+              body: JSON.stringify({
+                error: "Game has ended with a tie.",
+              }),
+              headers: {
+                "Content-Type": "application/json",
+              },
+            };
+          }
+        }
+
+        const board = JSON.parse(game.board);
+
+        //Game logic
+        const maxRow = board.length - 1;
+        const maxCol = board[0].length - 1;
+        const playLog = JSON.parse(game.playLog) || [];
+        let winningStreakCoordinates =
+          JSON.parse(game.winningStreakCoordinates) || [];
+        let turn = game.turn;
+        let tie = game.status === "tie" ? true : false;
+        let winner = "";
+
+        //Check streak for same color in all directions
+        const checkStreak = (row, col, color, direction) => {
+          const pathFormulaAndSanityCheck = (step) => {
+            switch (direction) {
+              //Covering all direction clockwise, starting from right
+              case "right": {
+                return {
+                  formula: board?.[row]?.[col + step] === color,
+                  failedSanityCheck: col + step > maxCol,
+                  passedStreak: [row, col + step],
+                };
+              }
+              case "right-down": {
+                return {
+                  formula: board?.[row + step]?.[col + step] === color,
+                  failedSanityCheck: col + step > maxCol || row + step > maxRow,
+                  passedStreak: [row + step, col + step],
+                };
+              }
+              case "down": {
+                return {
+                  formula: board?.[row + step]?.[col] === color,
+                  failedSanityCheck: row + step > maxRow,
+                  passedStreak: [row + step, col],
+                };
+              }
+              case "left-down": {
+                return {
+                  formula: board?.[row + step]?.[col - step] === color,
+                  failedSanityCheck: col - step < 0,
+                  passedStreak: [row + step, col - step],
+                };
+              }
+              case "left": {
+                return {
+                  formula: board?.[row]?.[col - step] === color,
+                  failedSanityCheck: col - step < 0,
+                  passedStreak: [row, col - step],
+                };
+              }
+              case "left-up": {
+                return {
+                  formula: board?.[row - step]?.[col - step] === color,
+                  failedSanityCheck: col - step < 0 || row - step < 0,
+                  passedStreak: [row - step, col - step],
+                };
+              }
+              //No case 'up' because the latest turn will never have coin above it.
+              case "right-up": {
+                return {
+                  formula: board?.[row - step]?.[col + step] === color,
+                  failedSanityCheck: col + step > maxCol || row - step < 0,
+                  passedStreak: [row - step, col + step],
+                };
+              }
+            }
+          };
+
+          let streak = 1;
+          let step = 1;
+          let streakCoords = [];
+          while (pathFormulaAndSanityCheck(step).formula) {
+            //When this check passes, streak is already 2
+            streak++;
+            if (pathFormulaAndSanityCheck(step).failedSanityCheck) {
+              return [];
+            }
+
+            streakCoords.push(pathFormulaAndSanityCheck(step).passedStreak);
+            if (streak === 4) {
+              streakCoords.unshift([row, col]); //Last play
+              return streakCoords;
+            }
+
+            step++;
+          }
+          return [];
+        };
+
+        //Check if all coordinates are filled with no winner
+        const checkIfTie = () => {
+          return board.every((row) => row.every((col) => col !== "e"));
+        };
+
+        const putCoin = (col, color) => {
+          const coordOccupied = (row, col) => board?.[row]?.[col] !== "e";
+
+          let currentRow = maxRow;
+          while (coordOccupied(currentRow, col)) {
+            if (currentRow < 0) {
+              break;
+            }
+            currentRow--;
+          }
+
+          console.log(currentRow, 123);
+
+          if (currentRow >= 0 && currentRow <= maxRow) {
+            board[currentRow][col] = color;
+
+            if (checkIfTie()) {
+              tie = true;
+            }
+            if (checkIfIWin(currentRow, col, color)) {
+              winner = color;
+            }
+          } else {
+            return false;
+          }
+
+          const red = "r";
+          const yellow = "y";
+          if (turn === red) {
+            color = yellow;
+            turn = yellow;
+          } else {
+            color = red;
+            turn = red;
+          }
+
+          return true;
+        };
+
+        const checkIfIWin = (row, col, color) => {
+          const directions = [
+            "right",
+            "right-down",
+            "down",
+            "left-down",
+            "left",
+            "left-up",
+            "right-up",
+          ];
+          for (let direction of directions) {
+            winningStreakCoordinates = checkStreak(row, col, color, direction);
+            if (winningStreakCoordinates.length === 4) {
+              return true;
+            }
+          }
+          return false;
+        };
+
+        playLog.push({
+          color: turn,
+          col,
+        });
+
+        if (!putCoin(col, turn)) {
+          return errorResponse("Invalid move.");
+        }
+
+        let status;
+        if (winningStreakCoordinates.length) {
+          status = "ended";
+        } else if (tie) {
+          status = "tie";
+        } else {
+          status = "ongoing";
+        }
+
+        await Game.update(
+          {
+            board,
+            winningStreakCoordinates,
+            status,
+            winner,
+            turn,
+            playLog,
+          },
+          {
+            where: {
+              id: gameId,
+            },
+          }
+        );
+
+        const updatedGame = await Game.findByPk(gameId, {
+          raw: true,
+        });
+
+        console.log(updatedGame);
+        return {
+          body: JSON.stringify({
+            ...updatedGame,
+            board: JSON.parse(updatedGame.board),
+            winningStreakCoordinates: JSON.parse(
+              updatedGame.winningStreakCoordinates
+            ),
+            playLog: JSON.parse(updatedGame.playLog),
+            plainView: `${originalHostWithNoTrailingSlash}/api/games/${game.id}/plainview`,
+          }),
+          headers: {
+            "Content-Type": "application/json",
+          },
+        };
+      };
+
       switch (request.method) {
         case "GET": {
+          const col = request.query.get('col');
+          if (col) {
+            return await playGame(col);
+          }
           const game = await Game.findByPk(gameId, { raw: true });
 
           if (!game) {
@@ -198,261 +456,7 @@ app.http("games", {
             };
           }
           const col = body?.col;
-          if (Number.isNaN(col) || col < 0 || col > 6) {
-            return {
-              body: JSON.stringify({
-                error: "Invalid column.",
-              }),
-              headers: {
-                "Content-Type": "application/json",
-              },
-            };
-          }
-
-          const game = await Game.findByPk(gameId, { raw: true });
-
-          if (!game) {
-            return errorResponse(gameNotFoundErrorMessage);
-          }
-
-          switch (game.status) {
-            case "ended": {
-              return {
-                body: JSON.stringify({
-                  error: `Game has ended. ${
-                    game.winner === "y" ? "Yellow" : "Red"
-                  } won.`,
-                }),
-                headers: {
-                  "Content-Type": "application/json",
-                },
-              };
-            }
-            case "tie": {
-              return {
-                body: JSON.stringify({
-                  error: "Game has ended with a tie.",
-                }),
-                headers: {
-                  "Content-Type": "application/json",
-                },
-              };
-            }
-          }
-
-          const board = JSON.parse(game.board);
-
-          //Game logic
-          const maxRow = board.length - 1;
-          const maxCol = board[0].length - 1;
-          const playLog = JSON.parse(game.playLog) || [];
-          let winningStreakCoordinates =
-            JSON.parse(game.winningStreakCoordinates) || [];
-          let turn = game.turn;
-          let tie = game.status === "tie" ? true : false;
-          let winner = "";
-
-          //Check streak for same color in all directions
-          const checkStreak = (row, col, color, direction) => {
-            const pathFormulaAndSanityCheck = (step) => {
-              switch (direction) {
-                //Covering all direction clockwise, starting from right
-                case "right": {
-                  return {
-                    formula: board?.[row]?.[col + step] === color,
-                    failedSanityCheck: col + step > maxCol,
-                    passedStreak: [row, col + step],
-                  };
-                }
-                case "right-down": {
-                  return {
-                    formula: board?.[row + step]?.[col + step] === color,
-                    failedSanityCheck:
-                      col + step > maxCol || row + step > maxRow,
-                    passedStreak: [row + step, col + step],
-                  };
-                }
-                case "down": {
-                  return {
-                    formula: board?.[row + step]?.[col] === color,
-                    failedSanityCheck: row + step > maxRow,
-                    passedStreak: [row + step, col],
-                  };
-                }
-                case "left-down": {
-                  return {
-                    formula: board?.[row + step]?.[col - step] === color,
-                    failedSanityCheck: col - step < 0,
-                    passedStreak: [row + step, col - step],
-                  };
-                }
-                case "left": {
-                  return {
-                    formula: board?.[row]?.[col - step] === color,
-                    failedSanityCheck: col - step < 0,
-                    passedStreak: [row, col - step],
-                  };
-                }
-                case "left-up": {
-                  return {
-                    formula: board?.[row - step]?.[col - step] === color,
-                    failedSanityCheck: col - step < 0 || row - step < 0,
-                    passedStreak: [row - step, col - step],
-                  };
-                }
-                //No case 'up' because the latest turn will never have coin above it.
-                case "right-up": {
-                  return {
-                    formula: board?.[row - step]?.[col + step] === color,
-                    failedSanityCheck: col + step > maxCol || row - step < 0,
-                    passedStreak: [row - step, col + step],
-                  };
-                }
-              }
-            };
-
-            let streak = 1;
-            let step = 1;
-            let streakCoords = [];
-            while (pathFormulaAndSanityCheck(step).formula) {
-              //When this check passes, streak is already 2
-              streak++;
-              if (pathFormulaAndSanityCheck(step).failedSanityCheck) {
-                return [];
-              }
-
-              streakCoords.push(pathFormulaAndSanityCheck(step).passedStreak);
-              if (streak === 4) {
-                streakCoords.unshift([row, col]); //Last play
-                return streakCoords;
-              }
-
-              step++;
-            }
-            return [];
-          };
-
-          //Check if all coordinates are filled with no winner
-          const checkIfTie = () => {
-            return board.every((row) => row.every((col) => col !== "e"));
-          };
-
-          const putCoin = (col, color) => {
-            const coordOccupied = (row, col) => board?.[row]?.[col] !== "e";
-
-            let currentRow = maxRow;
-            while (coordOccupied(currentRow, col)) {
-              if (currentRow < 0) {
-                break;
-              }
-              currentRow--;
-            }
-
-            console.log(currentRow, 123)
-
-            if (currentRow >= 0 && currentRow <= maxRow) {
-              board[currentRow][col] = color;
-
-              if (checkIfTie()) {
-                tie = true;
-              }
-              if (checkIfIWin(currentRow, col, color)) {
-                winner = color;
-              }
-            } else {
-              return false
-            }
-
-            const red = "r";
-            const yellow = "y";
-            if (turn === red) {
-              color = yellow;
-              turn = yellow;
-            } else {
-              color = red;
-              turn = red;
-            }
-
-            return true;
-          };
-
-          const checkIfIWin = (row, col, color) => {
-            const directions = [
-              "right",
-              "right-down",
-              "down",
-              "left-down",
-              "left",
-              "left-up",
-              "right-up",
-            ];
-            for (let direction of directions) {
-              winningStreakCoordinates = checkStreak(
-                row,
-                col,
-                color,
-                direction
-              );
-              if (winningStreakCoordinates.length === 4) {
-                return true;
-              }
-            }
-            return false;
-          };
-
-          playLog.push({
-            color: turn,
-            col,
-          });
-
-          if (!putCoin(col, turn)) {
-            return errorResponse("Invalid move.")
-          }
-
-          let status;
-          if (winningStreakCoordinates.length) {
-            status = "ended";
-          } else if (tie) {
-            status = "tie";
-          } else {
-            status = "ongoing";
-          }
-
-          await Game.update(
-            {
-              board,
-              winningStreakCoordinates,
-              status,
-              winner,
-              turn,
-              playLog,
-            },
-            {
-              where: {
-                id: gameId,
-              },
-            }
-          );
-
-          const updatedGame = await Game.findByPk(gameId, {
-            raw: true,
-          });
-
-          console.log(updatedGame);
-          return {
-            body: JSON.stringify({
-              ...updatedGame,
-              board: JSON.parse(updatedGame.board),
-              winningStreakCoordinates: JSON.parse(
-                updatedGame.winningStreakCoordinates
-              ),
-              playLog: JSON.parse(updatedGame.playLog),
-              plainView: `${originalHostWithNoTrailingSlash}/api/games/${game.id}/plainview`,
-            }),
-            headers: {
-              "Content-Type": "application/json",
-            },
-          };
+          return await playGame(col);
         }
       }
     }

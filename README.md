@@ -1,4 +1,4 @@
-# Connect Four by Fakhzan
+# Connect Four Web Application
 
 This repository contains a web application version of the game ["Connect Four"](https://en.m.wikipedia.org/wiki/Connect_Four). The author of this repository is Fakhzan.
 
@@ -213,7 +213,7 @@ None
 
 ------------------------------------------------------------------------------------------
 
-#### Play on the created Connect Four game
+#### Play on the specified `gameId` Connect Four game
 
 <details>
  <summary><code>POST</code> <code><b>/api/games/:gameId</b></code></summary>
@@ -314,14 +314,16 @@ None
 
 ------------------------------------------------------------------------------------------
 
-#### Get a specific Connect Four game
+#### Get a specific Connect Four game OR **Play on the specified `gameId` Connect Four game if ``col`` query parameter is supplied**
 
 <details>
  <summary><code>GET</code> <code><b>/api/games/:gameId</b></code></summary>
 
 ##### Query Parameters
 
-None
+|   Query     |        Type      |     Required    | Default Value| Example Value
+|------------|--------------------|----------------|--------------|---------------
+| `col`      | `Integer`         |    `No`        | `None`            | `3`
 
 ##### Response
 
@@ -557,7 +559,7 @@ None
 | `200`      | `text/plain` | 
 
 ##### Example Response (Retuns an object with "winner" key-value pair)
-<details> <summary>JSON</summary>
+<details> <summary>Plain text</summary>
 
 ```text
 e,e,e,e,e,e,e
