@@ -1,188 +1,53 @@
 <script setup>
-import { ref, reactive, onMounted } from "vue";
+import { ref, reactive, toRefs, inject } from "vue";
 import { useRouter } from "vue-router";
 import coindrop from "../assets/drop.wav";
-defineProps({
-    viewMode: {
-        type: Boolean,
-        default: false
-    },
-    gameId: {
-        type: String
-    }
-})
+
+
+const axios = inject('axios');
+
+const props = defineProps({
+  viewMode: {
+    type: Boolean,
+    default: false,
+  },
+  game: {
+    type: Object
+  },
+});
+const {game} = toRefs(props);
+let board = reactive(game.value.board);
+const gameId = game.value.id;
 const router = useRouter();
 
 const viewGame = async (gameId) => {
-    await router.isReady();
-    if (gameId) {
-        router.push(`/game/${gameId}`)
-    }
-}
-
-const board = reactive(
-  [
-    ["e", "e", "e", "e", "e", "e", "e"],
-    ["e", "e", "e", "e", "e", "e", "e"],
-    ["e", "e", "e", "e", "e", "e", "e"],
-    ["e", "e", "e", "e", "e", "e", "e"],
-    ["e", "e", "e", "e", "e", "e", "e"],
-    ["e", "e", "e", "e", "e", "e", "e"],
-  ]
-  /*
-  Coordinates:
-  [0,0], [0,1], [0,2], [0,3], [0,4], [0,5], [0,6]
-  [1,0], [1,1], [1,2], [1,3], [1,4], [1,5], [1,6]
-  [2,0], [2,1], [2,2], [2,3], [2,4], [2,5], [2,6]
-  [3,0], [3,1], [3,2], [3,3], [3,4], [3,5], [3,6]
-  [4,0], [4,1], [4,2], [4,3], [4,4], [4,5], [4,6]
-  [5,0], [5,1], [5,2], [5,3], [5,4], [5,5], [5,6]
-  */
-);
-let turn = ref("y"); //"Yellow" starts first
-let winningStreakCoordinates = reactive([]); //To keep track of the winning condition coordinates
-let tie = ref(false);
-
-const maxRow = board.length - 1;
-const maxCol = board[0].length - 1;
-
-const checkStreak = (row, col, color, direction) => {
-  const pathFormulaAndSanityCheck = (step) => {
-    switch (direction) {
-      //Covering all direction clockwise, starting from right
-      case "right": {
-        return {
-          formula: board?.[row]?.[col + step] === color,
-          failedSanityCheck: col + step > maxCol,
-          passedStreak: [row, col + step],
-        };
-      }
-      case "right-down": {
-        return {
-          formula: board?.[row + step]?.[col + step] === color,
-          failedSanityCheck: col + step > maxCol || row + step > maxRow,
-          passedStreak: [row + step, col + step],
-        };
-      }
-      case "down": {
-        return {
-          formula: board?.[row + step]?.[col] === color,
-          failedSanityCheck: row + step > maxRow,
-          passedStreak: [row + step, col],
-        };
-      }
-      case "left-down": {
-        return {
-          formula: board?.[row + step]?.[col - step] === color,
-          failedSanityCheck: col - step < 0,
-          passedStreak: [row + step, col - step],
-        };
-      }
-      case "left": {
-        return {
-          formula: board?.[row]?.[col - step] === color,
-          failedSanityCheck: col - step < 0,
-          passedStreak: [row, col - step],
-        };
-      }
-      case "left-up": {
-        return {
-          formula: board?.[row - step]?.[col - step] === color,
-          failedSanityCheck: col - step < 0 || row - step < 0,
-          passedStreak: [row - step, col - step],
-        };
-      }
-      //No case 'up' because the latest turn will never have coin above it.
-      case "right-up": {
-        return {
-          formula: board?.[row - step]?.[col + step] === color,
-          failedSanityCheck: col + step > maxCol || row - step < 0,
-          streak: [row - step, col + step],
-        };
-      }
-    }
-  };
-
-  let streak = 1;
-  let step = 1;
-  let streakCoords = [];
-  while (pathFormulaAndSanityCheck(step).formula) {
-    //When this check passes, streak is already 2
-    streak++;
-    if (pathFormulaAndSanityCheck(step).failedSanityCheck) {
-      return [];
-    }
-
-    streakCoords.push(pathFormulaAndSanityCheck(step).passedStreak);
-    if (streak === 4) {
-      streakCoords.unshift([row, col]); //Last play
-      return streakCoords;
-    }
-
-    step++;
+  if (gameId) {
+    router.push(`/game/${gameId}`);
   }
-  return [];
 };
 
-const checkIfTie = () => {
-  return board.every((row) => row.every((col) => col !== "e"));
-};
+let turn = game.value.turn;
+let winningStreakCoordinates = reactive(game.value.winningStreakCoordinates); //To keep track of the winning condition coordinates
+let tie = ref(game.value.status === 'tie');
+let winner = ref(game.value.winner);
 
-const putCoin = (col, color) => {
-  const coordOccupied = (row, col) => board?.[row]?.[col] !== "e";
 
-  let currentRow = maxRow;
-  while (coordOccupied(currentRow, col)) {
-    if (currentRow < 0) {
-      break;
-    }
-    currentRow--;
-  }
 
-  if (currentRow >= 0) {
-    var audio = new Audio(coindrop);
+const putCoin = async col => {
+  try {
+    const {data} = await axios.post(`/api/games/${gameId}`, {
+      col
+    });
+    const audio = new Audio(coindrop);
     audio.play();
-    board[currentRow][col] = color;
-
-    if (checkIfTie()) {
-      tie = true;
-    }
-    if (checkIfIWin(currentRow, col, color)) {
-      console.log(`${color} won`);
-    }
-  } else {
-    return;
+    Object.assign(board, data.board);
+    Object.assign(winningStreakCoordinates, data.winningStreakCoordinates);
+    tie = data.status === 'tie';
+    turn = data.turn;
+    winner = data.winner;
+  } catch (e) {
+    alert("Error putting coin. Check the console below for more details.")
   }
-
-  const red = "r";
-  const yellow = "y";
-  if (turn.value === red) {
-    color = yellow;
-    turn.value = yellow;
-  } else {
-    color = red;
-    turn.value = red;
-  }
-};
-
-
-const checkIfIWin = (row, col, color) => {
-  const directions = [
-    "right",
-    "right-down",
-    "down",
-    "left-down",
-    "left",
-    "left-up",
-    "right-up",
-  ];
-  for (let direction of directions) {
-    winningStreakCoordinates = checkStreak(row, col, color, direction);
-    if (winningStreakCoordinates.length === 4) {
-      return true;
-    }
-  }
-  return false;
 };
 
 const inwinningStreakCoordinates = (row, col) => {
@@ -192,45 +57,53 @@ const inwinningStreakCoordinates = (row, col) => {
 };
 </script>
 <template>
-  <div :class="['container', {cursor: viewMode}]" @click="viewGame(123)">
+  <div :class="['container', { cursor: viewMode }]" @click="viewGame(gameId)">
     <div v-if="!viewMode" class="buttons-container">
       <button
+        type="button"
         v-for="(col, coli) in board[0].length"
         :key="`ms_${coli}`"
         @click="putCoin(coli, turn)"
-        :class="winningStreakCoordinates.length === 4 ? 'gray' : turn"
+        :class="winningStreakCoordinates.length === 4 || tie ? 'gray' : turn"
         :disabled="winningStreakCoordinates.length === 4 || tie"
       >
         ⦿
       </button>
     </div>
-    <div class="board">
-      <div v-for="(row, ri) in board" :key="`row_${ri}`" class="row">
-        <span
-          style="padding: 3px; margin: 1px"
-          v-for="(rowCol, ci) in row"
-          :key="`row_${ri}_col_${ci}`"
-        >
+    <div class="board-container" :class="[{[`${winner}-board-container`]: winner}, {[`tie-board-container`]: tie}]">
+      <div class="board" :class="[{[`${winner}-won`]: winner}, {tie}]">
+        <div v-for="(row, ri) in board" :key="`row_${ri}`" class="row">
           <span
-            :class="[
-              { [rowCol]: inwinningStreakCoordinates(ri, ci) },
-              { bold: inwinningStreakCoordinates(ri, ci) },
-            ]"
-            >[
+            style="padding: 3px; margin: 1px"
+            v-for="(rowCol, ci) in row"
+            :key="`row_${ri}_col_${ci}`"
+          >
+            <span
+              :class="[
+                { [rowCol]: inwinningStreakCoordinates(ri, ci) },
+                { bold: inwinningStreakCoordinates(ri, ci) },
+              ]"
+              >[
+            </span>
+            <span :class="[rowCol, { bold: inwinningStreakCoordinates(ri, ci) }]"
+              >⦿</span
+            >
+            <span
+              :class="[
+                { [rowCol]: inwinningStreakCoordinates(ri, ci) },
+                { bold: inwinningStreakCoordinates(ri, ci) },
+              ]"
+            >
+              ]</span
+            >
           </span>
-          <span :class="[rowCol, { bold: inwinningStreakCoordinates(ri, ci) }]"
-            >⦿</span
-          >
-          <span
-            :class="[
-              { [rowCol]: inwinningStreakCoordinates(ri, ci) },
-              { bold: inwinningStreakCoordinates(ri, ci) },
-            ]"
-          >
-            ]</span
-          >
-        </span>
+        </div>
       </div>
+      
+    </div>
+    <div class="announce-container">
+      <div class="info">Game ID: {{ gameId }}</div>
+      <h3 class="winner">{{ winner || tie ? (winner ? (winner === 'y' ? 'YELLOW WON' : "RED WON") : (tie ? "TIE" : "NO WINNER")) : "ONGOING" }}</h3>
     </div>
   </div>
 </template>
@@ -239,18 +112,18 @@ const inwinningStreakCoordinates = (row, col) => {
 .container {
   padding: 5px;
   overflow: hidden;
+  flex: 44%;
 }
 
 .cursor {
-    cursor: pointer;
+  cursor: pointer;
 }
 
 .board {
   background: blue;
   color: gray;
   width: 100%;
-  font-size: 4.3vw;
-  padding: 10px;
+  font-size: 1.9vw;
 }
 
 .row {
@@ -258,7 +131,7 @@ const inwinningStreakCoordinates = (row, col) => {
   justify-content: space-around;
 }
 button {
-  font-size: 4.3vw;
+  font-size: 1.9vw;
   background: blue;
   border-radius: 5px;
 }
@@ -283,5 +156,49 @@ button {
 }
 .bold {
   font-weight: bolder;
+}
+
+.board-container {
+  border: 10px solid blue;
+}
+
+.y-board-container {
+  border: 10px solid rgb(245, 245, 215);
+}
+
+.r-board-container {
+  border: 10px solid rgb(241, 221, 221);
+}
+
+.tie-board-container {
+  border: 10px solid rgb(235, 235, 235);
+}
+
+.y-won {
+  background: rgb(245, 245, 215);
+}
+
+.r-won {
+  background: rgb(241, 221, 221);
+}
+
+.tie {
+  background: rgb(235, 235, 235);
+}
+
+.announce-container {
+  display: flex;
+  flex-direction: column;
+  text-align: center;
+  align-items: center;
+  justify-content: center;
+}
+
+.info {
+  margin: 2px;
+  margin-top: 10px;
+}
+.winner {
+  margin: 5px;
 }
 </style>

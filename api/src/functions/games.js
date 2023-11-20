@@ -103,6 +103,14 @@ app.http("games", {
             limit: perPage,
           });
 
+          const totalPages = Math.ceil((await Game.count({
+            where: {
+              id: {
+                [Op.not]: null
+              }
+            }
+          }))/perPage);
+
           return {
             body: JSON.stringify({
               games: games.rows.map((g) => {
@@ -116,6 +124,8 @@ app.http("games", {
                   plainView: `${requestURLWithNoTrailingSlash}/${g.id}/plainview`,
                 };
               }),
+              currentPage: page,
+              totalPages
             }),
             headers: {
               "Content-Type": "application/json",
@@ -335,7 +345,9 @@ app.http("games", {
               currentRow--;
             }
 
-            if (currentRow >= 0) {
+            console.log(currentRow, 123)
+
+            if (currentRow >= 0 && currentRow <= maxRow) {
               board[currentRow][col] = color;
 
               if (checkIfTie()) {
@@ -345,7 +357,7 @@ app.http("games", {
                 winner = color;
               }
             } else {
-              return;
+              return false
             }
 
             const red = "r";
@@ -357,6 +369,8 @@ app.http("games", {
               color = red;
               turn = red;
             }
+
+            return true;
           };
 
           const checkIfIWin = (row, col, color) => {
@@ -394,7 +408,9 @@ app.http("games", {
             col,
           });
 
-          putCoin(col, turn);
+          if (!putCoin(col, turn)) {
+            return errorResponse("Invalid move.")
+          }
 
           let status;
           if (winningStreakCoordinates.length) {
