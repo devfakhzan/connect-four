@@ -143,7 +143,7 @@ button {
   margin-left: 10px;
 }
 .y {
-  color: rgb(214, 214, 22);
+  color: rgb(211, 211, 33);
 }
 
 .r {
@@ -163,7 +163,7 @@ button {
 }
 
 .y-board-container {
-  border: 10px solid rgb(245, 245, 215);
+  border: 10px solid #ffffad;
 }
 
 .r-board-container {
@@ -175,7 +175,7 @@ button {
 }
 
 .y-won {
-  background: rgb(245, 245, 215);
+  background: #ffffad;
 }
 
 .r-won {

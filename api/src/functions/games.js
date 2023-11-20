@@ -54,6 +54,7 @@ app.http("games", {
   handler: async (request, context) => {
     await Game.sync();
 
+    //For clearing database:
     // await Game.destroy({
     //     where: {
     //         id: {
@@ -61,11 +62,12 @@ app.http("games", {
     //         }
     //     }
     // })
-    const { gameId, check } = request.params;
+    // return
 
-    const requestURLWithNoTrailingSlash = request.url.endsWith("/")
-      ? request.url.slice(0, -1)
-      : request.url;
+    const { gameId, check } = request.params;
+    let originalHost = request.headers.get('host');
+    const protocol = request.url.includes('https') ? 'https://' : 'http://';
+    const originalHostWithNoTrailingSlash = `${protocol}${originalHost}`;
 
     const errorResponse = (errorMessage) => {
       return {
@@ -80,8 +82,9 @@ app.http("games", {
     const methodNotAllowedErrorMessage = "Method not allowed.";
     const gameNotFoundErrorMessage = "Game not found.";
 
+    //Request made to "/api/games"
     if (!gameId && !check) {
-      //Request made to "/api/games"
+      
 
       switch (
         request.method //Check request method
@@ -109,7 +112,7 @@ app.http("games", {
                 [Op.not]: null
               }
             }
-          }))/perPage);
+          }))/perPage) || 1;
 
           return {
             body: JSON.stringify({
@@ -121,7 +124,7 @@ app.http("games", {
                     g.winningStreakCoordinates
                   ),
                   playLog: JSON.parse(g.playLog),
-                  plainView: `${requestURLWithNoTrailingSlash}/${g.id}/plainview`,
+                  plainView: `${originalHostWithNoTrailingSlash}/api/games/${g.id}/plainview`,
                 };
               }),
               currentPage: page,
@@ -151,8 +154,8 @@ app.http("games", {
       }
     }
 
+    //Request made to "/api/games/<gameId>"
     if (gameId && !check) {
-      //Request made to "/api/games/<gameId>"
       switch (request.method) {
         case "GET": {
           const game = await Game.findByPk(gameId, { raw: true });
@@ -173,7 +176,7 @@ app.http("games", {
                 game.winningStreakCoordinates
               ),
               playLog: JSON.parse(game.playLog),
-              plainView: `${requestURLWithNoTrailingSlash}/plainview`,
+              plainView: `${originalHostWithNoTrailingSlash}/api/games/${game.id}/plainview`,
             }),
             headers: {
               "Content-Type": "application/json",
@@ -450,7 +453,7 @@ app.http("games", {
                 updatedGame.winningStreakCoordinates
               ),
               playLog: JSON.parse(updatedGame.playLog),
-              plainView: `${requestURLWithNoTrailingSlash}/plainview`,
+              plainView: `${originalHostWithNoTrailingSlash}/api/games/${game.id}/plainview`,
             }),
             headers: {
               "Content-Type": "application/json",
@@ -460,6 +463,7 @@ app.http("games", {
       }
     }
 
+    //Request made to "/api/games/<gameId>/winner or plainview"
     if (gameId && check) {
       if (request.method !== "GET") {
         return errorResponse(methodNotAllowedErrorMessage); //Only allow GET

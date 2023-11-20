@@ -6,19 +6,25 @@ const requests = useRequestsStore();
 let games = reactive([]);
 let currentPage = ref(1);
 let totalPages = ref("?");
+let fetching =ref(false)
 
 const axios = inject("axios");
 
 const fetchAllGames = async () => {
+  fetching.value = true;
   try {
     const { data } = await axios.get("/api/games");
     if (data.games) {
       games.splice(0, games.length, ...data.games);
-      totalPages = data.totalPages;
-      currentPage = data.currentPage;
+      totalPages.value = data.totalPages;
+      currentPage.value = data.currentPage;
     }
   } catch (e) {
-    alert("Error fetching all games. Check the console below for more details.")
+    alert(
+      "Error fetching all games. Check the console below for more details."
+    );
+  } finally  {
+    fetching.value = false;
   }
 };
 
@@ -27,11 +33,13 @@ const fetchGamesInPage = async (pageNumber) => {
     const { data } = await axios.get(`/api/games?page=${pageNumber}`);
     if (data.games) {
       games.splice(0, games.length, ...data.games);
-      totalPages = data.totalPages;
-      currentPage = data.currentPage;
+      totalPages.value = data.totalPages;
+      currentPage.value = data.currentPage;
     }
   } catch (e) {
-    alert("Error fetching this game page. Check the console below for more details.")
+    alert(
+      "Error fetching this game page. Check the console below for more details."
+    );
   }
 };
 onMounted(async () => {
@@ -46,7 +54,9 @@ const createNewGame = async () => {
       await fetchGamesInPage(totalPages);
     }
   } catch (error) {
-    alert("Error creating a new game. Check the console below for more details.")
+    alert(
+      "Error creating a new game. Check the console below for more details."
+    );
   }
 };
 </script>
@@ -76,18 +86,23 @@ const createNewGame = async () => {
   </header>
 
   <div class="boards">
-    <div v-if="games.length" class="boards-container">
-      <Board
-        class="margin-y"
-        :view-mode="true"
-        v-for="game in games"
-        :key="game.id"
-        :game="game"
-      />
-    </div>
-    <div v-else>
-      <h3>No game found.</h3>
-    </div>
+    <template v-if="fetching">
+      <h3>Fetching all games...</h3>
+    </template>
+    <template v-else>
+      <div v-if="games.length" class="boards-container">
+        <Board
+          class="margin-y"
+          :view-mode="true"
+          v-for="game in games"
+          :key="game.id"
+          :game="game"
+        />
+      </div>
+      <div v-else>
+        <h3>No game found.</h3>
+      </div>
+    </template>
   </div>
 </template>
 

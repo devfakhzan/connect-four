@@ -1,15 +1,16 @@
-import { defineStore } from 'pinia'
+import { defineStore } from "pinia";
 
-export const useRequestsStore = defineStore('requests', {
+export const useRequestsStore = defineStore("requests", {
   state: () => {
-    return { 
-        logs: []
-    }
+    return {
+      logs: {},
+    };
   },
   actions: {
     add(logObject) {
-      this.logs.unshift(logObject);
-      this.logs = this.logs.splice(0, 1);
+      //   this.logs.unshift(logObject);
+      //   this.logs = this.logs.splice(0, 1);
+      this.logs = logObject;
     },
   },
-})
+});

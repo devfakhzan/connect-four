@@ -65,8 +65,8 @@ const requests = useRequestsStore();
   <div class="console">
     <JsonTreeView
       :data="JSON.stringify(requests.logs)"
-      :maxDepth="3"
-      rootKey="HTTP Logs"
+      :maxDepth="10"
+      rootKey="Last API Request"
     />
   </div>
 </template>
