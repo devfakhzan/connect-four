@@ -558,7 +558,7 @@ None
 |------------|------------------|
 | `200`      | `text/plain` | 
 
-##### Example Response (Retuns an object with "winner" key-value pair)
+##### Example Response (Retuns the plain text view visualization of a specific current Connect Four game board)
 <details> <summary>Plain text</summary>
 
 ```text
@@ -569,7 +569,7 @@ e,e,y,r,e,e,e
 e,e,y,r,e,e,e
 e,e,y,r,e,e,e
 ```
-</details>
 
 > `Note: e = Empty (unplayed coordinate), y = Yellow coin at this coordinate r = Red coin at this coordinate.`
+</details>
 </details>

@@ -412,7 +412,7 @@ app.http("games", {
 
       switch (request.method) {
         case "GET": {
-          const col = request.query.get('col');
+          const col = request.query.get("col");
           if (col) {
             return await playGame(col);
           }
