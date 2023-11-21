@@ -11,9 +11,9 @@ This repository contains a web application version of the game ["Connect Four"](
     - All games data fetching contains built-in pagination
     - Game data contains `winningStreakCoordinates` recording the winning streak coordinates
     - Game data contains `playLog` which allows the game to be replayed step-by-step
-    - Game data contains `plainView` to help visualization of the current game board
+    - Game data contains `plainView` to help with the visualization of the current game board
 
-- Front-end demo:
+- Front-end:
     - **[Demo Site for API Usage](https://connect-four.fakhzan.com)**
     - Web application (HTML, CSS, JS)
     - Vite + Vue.js 3
@@ -26,7 +26,7 @@ This repository contains a web application version of the game ["Connect Four"](
 <details>
  <summary><code>POST</code> <code><b>/api/games</b></code></summary>
 
-##### Parameters
+##### Body Parameters
 
 None
 
@@ -35,6 +35,9 @@ None
 | HTTP Code  | Content-Type     |
 |------------|------------------|
 | `200`      | `application/json` | 
+
+##### Example Request 
+> ``POST /api/games``
 
 ##### Example Response (Returns the newly created Connect Four game's game object)
 <details> <summary>JSON</summary>
@@ -128,6 +131,9 @@ None
 | HTTP Code  | Content-Type     |
 |------------|------------------|
 | `200`      | `application/json` | 
+
+##### Example Request 
+> ``GET /api/games?page=2``
 
 ##### Example Response (Returns all the game objects on the (un)specified page)
 <details> <summary>JSON</summary>
@@ -230,6 +236,17 @@ None
 |------------|------------------|
 | `200`      | `application/json` | 
 
+##### Example Request 
+> ``POST /api/games/a07b1bee-534d-4c44-a391-bf9a4195bee2``
+
+##### Example Request Body
+```json
+{
+    "col": 1
+}
+```
+
+
 ##### Example Response (Retuns the game object)
 <details> <summary>JSON</summary>
 
@@ -314,7 +331,7 @@ None
 
 ------------------------------------------------------------------------------------------
 
-#### Get a specific Connect Four game OR **Play on the specified `gameId` Connect Four game if ``col`` query parameter is supplied**
+#### Get a specific Connect Four game AND **Play on the specified `gameId` Connect Four game if ``col`` query parameter is supplied**
 
 <details>
  <summary><code>GET</code> <code><b>/api/games/:gameId</b></code></summary>
@@ -331,105 +348,8 @@ None
 |------------|------------------|
 | `200`      | `application/json` | 
 
-##### Example Response (Retuns the game object)
-<details> <summary>JSON</summary>
-
-```json
-{
-    "id": "a07b1bee-534d-4c44-a391-bf9a4195bee2",
-    "board": [
-        [
-            "e",
-            "e",
-            "e",
-            "e",
-            "e",
-            "e",
-            "e"
-        ],
-        [
-            "e",
-            "e",
-            "e",
-            "e",
-            "e",
-            "e",
-            "e"
-        ],
-        [
-            "e",
-            "e",
-            "e",
-            "e",
-            "e",
-            "e",
-            "e"
-        ],
-        [
-            "e",
-            "e",
-            "e",
-            "e",
-            "e",
-            "e",
-            "e"
-        ],
-        [
-            "e",
-            "e",
-            "e",
-            "e",
-            "e",
-            "e",
-            "e"
-        ],
-        [
-            "e",
-            "y",
-            "e",
-            "e",
-            "e",
-            "e",
-            "e"
-        ]
-    ],
-    "turn": "r",
-    "winningStreakCoordinates": [],
-    "status": "ongoing",
-    "winner": "",
-    "playLog": [
-        {
-            "color": "y",
-            "col": 1
-        }
-    ],
-    "createdAt": "2023-11-20 15:56:35.686 +00:00",
-    "updatedAt": "2023-11-20 16:37:00.576 +00:00",
-    "plainView": "http://127.0.0.1:7071/api/games/a07b1bee-534d-4c44-a391-bf9a4195bee2/plainview"
-}
-```
-</details>
-</details>
-
-
-------------------------------------------------------------------------------------------
-
-#### Play on the created Connect Four game
-
-<details>
- <summary><code>POST</code> <code><b>/api/games/:gameId</b></code></summary>
-
-##### Body Parameters
-
-|   Body     |        Type      |     Required    | Default Value| Example Value
-|------------|--------------------|----------------|--------------|---------------
-| `col`      | `Integer`         |    `Yes`        | `None`            | `3`
-
-##### Response
-
-| HTTP Code  | Content-Type     |
-|------------|------------------|
-| `200`      | `application/json` | 
+##### Example Request 
+> ``GET /api/games/a07b1bee-534d-4c44-a391-bf9a4195bee2?col=1``
 
 ##### Example Response (Retuns the game object)
 <details> <summary>JSON</summary>
@@ -529,6 +449,9 @@ None
 |------------|------------------|
 | `200`      | `application/json` | 
 
+##### Example Request 
+> ``GET /api/games/a07b1bee-534d-4c44-a391-bf9a4195bee2/winner``
+
 ##### Example Response (Retuns an object with "winner" key-value pair)
 <details> <summary>JSON</summary>
 
@@ -557,6 +480,9 @@ None
 | HTTP Code  | Content-Type     |
 |------------|------------------|
 | `200`      | `text/plain` | 
+
+##### Example Request 
+> ``GET /api/games/a07b1bee-534d-4c44-a391-bf9a4195bee2/plainview``
 
 ##### Example Response (Retuns the plain text view visualization of a specific current Connect Four game board)
 <details> <summary>Plain text</summary>
