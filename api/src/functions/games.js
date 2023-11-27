@@ -54,7 +54,7 @@ app.http("games", {
   handler: async (request, context) => {
     await Game.sync();
 
-    ////For clearing database:
+    // //For clearing database:
     // await Game.destroy({
     //     where: {
     //         id: {
@@ -215,81 +215,179 @@ app.http("games", {
 
         //Check streak for same color in all directions
         const checkStreak = (row, col, color, direction) => {
-          const pathFormulaAndSanityCheck = (step) => {
+          let result = [];
+
+          if (direction.includes("mid")) {
             switch (direction) {
-              //Covering all direction clockwise, starting from right
-              case "right": {
-                return {
-                  formula: board?.[row]?.[col + step] === color,
-                  failedSanityCheck: col + step > maxCol,
-                  passedStreak: [row, col + step],
-                };
+              case "mid-horizontal": {
+                const horizontalCoords = new Array(7)
+                  .fill("")
+                  .map((_, index) => [row, index]);
+                let streak = [];
+                for (let coord of horizontalCoords) {
+                  if (board[coord[0]][coord[1]] === color) {
+                    streak.push(coord);
+                  } else {
+                    streak.length < 4 ? streak = [] : null;
+                  }
+                }
+
+                if (streak.length >= 4) {
+                  return streak;
+                } else {
+                  result = [];
+                }
               }
-              case "right-down": {
-                return {
-                  formula: board?.[row + step]?.[col + step] === color,
-                  failedSanityCheck: col + step > maxCol || row + step > maxRow,
-                  passedStreak: [row + step, col + step],
-                };
-              }
-              case "down": {
-                return {
-                  formula: board?.[row + step]?.[col] === color,
-                  failedSanityCheck: row + step > maxRow,
-                  passedStreak: [row + step, col],
-                };
-              }
-              case "left-down": {
-                return {
-                  formula: board?.[row + step]?.[col - step] === color,
-                  failedSanityCheck: col - step < 0,
-                  passedStreak: [row + step, col - step],
-                };
-              }
-              case "left": {
-                return {
-                  formula: board?.[row]?.[col - step] === color,
-                  failedSanityCheck: col - step < 0,
-                  passedStreak: [row, col - step],
-                };
-              }
-              case "left-up": {
-                return {
-                  formula: board?.[row - step]?.[col - step] === color,
-                  failedSanityCheck: col - step < 0 || row - step < 0,
-                  passedStreak: [row - step, col - step],
-                };
-              }
-              //No case 'up' because the latest turn will never have coin above it.
-              case "right-up": {
-                return {
-                  formula: board?.[row - step]?.[col + step] === color,
-                  failedSanityCheck: col + step > maxCol || row - step < 0,
-                  passedStreak: [row - step, col + step],
-                };
+              case "mid-diagonals": {
+                const upLeftRightCoords = [];
+
+                //Go down coords
+                const goDownInUpLeftRightCoords = [];
+                for (let i = 1; row + i <= maxRow && col - i >= 0; i++) {
+                  goDownInUpLeftRightCoords.push([row + i, col - i]);
+                }
+
+                //Go up coords
+                const goUpInUpLeftRightCoords = [];
+                for (let i = 1; row - i >= 0 && col + i <= maxCol; i++) {
+                  goUpInUpLeftRightCoords.push([row - i, col + i]);
+                }
+
+                upLeftRightCoords.push(
+                  ...goDownInUpLeftRightCoords.reverse(),
+                  [row, col],
+                  ...goUpInUpLeftRightCoords
+                );
+
+                const downLeftRightCoords = [];
+
+                //Go up coords
+                const goUpInDownLeftRightCoords = [];
+                for (let i = 1; row - i >= 0 && col - i >= 0; i++) {
+                  goUpInDownLeftRightCoords.push([row - i, col - i]);
+                }
+
+                //Go down coords
+                const goDownInDownLeftRightCoords = [];
+                for (let i = 1; row + i <= maxRow && col + i <= maxCol; i++) {
+                  goDownInDownLeftRightCoords.push([row + i, col + i]);
+                }
+
+                downLeftRightCoords.push(
+                  ...goUpInDownLeftRightCoords.reverse(),
+                  [row, col],
+                  ...goDownInDownLeftRightCoords
+                );
+
+                let streak = [];
+                for (let coord of upLeftRightCoords) {
+                  if (board[coord[0]][coord[1]] === color) {
+                    streak.push(coord);
+                  } else {
+                    streak.length < 4 ? streak = [] : null;
+                  }
+                }
+
+                if (streak.length >= 4) {
+                  return streak;
+                }
+
+                streak = [];
+
+                for (let coord of downLeftRightCoords) {
+                  if (board[coord[0]][coord[1]] === color) {
+                    streak.push(coord);
+                  } else {
+                    streak.length < 4 ? streak = [] : null;
+                  }
+                }
+
+                if (streak.length >= 4) {
+                  return streak;
+                }
+
+                result = [];
               }
             }
-          };
+            return result;
+          } else {
+            const pathFormulaAndSanityCheck = (step) => {
+              switch (direction) {
+                //Covering all direction clockwise, starting from right
+                case "right": {
+                  return {
+                    formula: board?.[row]?.[col + step] === color,
+                    failedSanityCheck: col + step > maxCol,
+                    passedStreak: [row, col + step],
+                  };
+                }
+                case "right-down": {
+                  return {
+                    formula: board?.[row + step]?.[col + step] === color,
+                    failedSanityCheck:
+                      col + step > maxCol || row + step > maxRow,
+                    passedStreak: [row + step, col + step],
+                  };
+                }
+                case "down": {
+                  return {
+                    formula: board?.[row + step]?.[col] === color,
+                    failedSanityCheck: row + step > maxRow,
+                    passedStreak: [row + step, col],
+                  };
+                }
+                case "left-down": {
+                  return {
+                    formula: board?.[row + step]?.[col - step] === color,
+                    failedSanityCheck: col - step < 0,
+                    passedStreak: [row + step, col - step],
+                  };
+                }
+                case "left": {
+                  return {
+                    formula: board?.[row]?.[col - step] === color,
+                    failedSanityCheck: col - step < 0,
+                    passedStreak: [row, col - step],
+                  };
+                }
+                case "left-up": {
+                  return {
+                    formula: board?.[row - step]?.[col - step] === color,
+                    failedSanityCheck: col - step < 0 || row - step < 0,
+                    passedStreak: [row - step, col - step],
+                  };
+                }
+                //No case 'up' because the latest turn will never have coin above it.
+                case "right-up": {
+                  return {
+                    formula: board?.[row - step]?.[col + step] === color,
+                    failedSanityCheck: col + step > maxCol || row - step < 0,
+                    passedStreak: [row - step, col + step],
+                  };
+                }
+              }
+            };
 
-          let streak = 1;
-          let step = 1;
-          let streakCoords = [];
-          while (pathFormulaAndSanityCheck(step).formula) {
-            //When this check passes, streak is already 2
-            streak++;
-            if (pathFormulaAndSanityCheck(step).failedSanityCheck) {
-              return [];
+            let streak = 1;
+            let step = 1;
+            let streakCoords = [];
+            while (pathFormulaAndSanityCheck(step).formula) {
+              //When this check passes, streak is already 2
+              streak++;
+              if (pathFormulaAndSanityCheck(step).failedSanityCheck) {
+                return [];
+              }
+
+              streakCoords.push(pathFormulaAndSanityCheck(step).passedStreak);
+              if (streak === 4) {
+                streakCoords.unshift([row, col]); //Last play
+                result = streakCoords;
+              }
+
+              step++;
             }
-
-            streakCoords.push(pathFormulaAndSanityCheck(step).passedStreak);
-            if (streak === 4) {
-              streakCoords.unshift([row, col]); //Last play
-              return streakCoords;
-            }
-
-            step++;
+            return result;
           }
-          return [];
         };
 
         //Check if all coordinates are filled with no winner
@@ -308,7 +406,6 @@ app.http("games", {
             currentRow--;
           }
 
-          console.log(currentRow, 123);
 
           if (currentRow >= 0 && currentRow <= maxRow) {
             board[currentRow][col] = color;
@@ -338,6 +435,8 @@ app.http("games", {
 
         const checkIfIWin = (row, col, color) => {
           const directions = [
+            "mid-horizontal",
+            "mid-diagonals",
             "right",
             "right-down",
             "down",
@@ -348,7 +447,8 @@ app.http("games", {
           ];
           for (let direction of directions) {
             winningStreakCoordinates = checkStreak(row, col, color, direction);
-            if (winningStreakCoordinates.length === 4) {
+
+            if (winningStreakCoordinates.length >= 4) {
               return true;
             }
           }
@@ -393,7 +493,6 @@ app.http("games", {
           raw: true,
         });
 
-        console.log(updatedGame);
         return {
           body: JSON.stringify({
             ...updatedGame,
